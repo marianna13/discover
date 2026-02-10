@@ -13,13 +13,16 @@ from tinker_cookbook.rl.types import (
     Transition,
 )
 from tinker_cookbook.utils import logtree
+import logging
 
+logger = logging.getLogger(__name__)
 
 @logtree.scope_header_decorator
 async def do_single_rollout(policy: TokenCompleter, env: Env, step_idx: int) -> Trajectory:
     transitions = []
     # TODO: Probably have initial observation return a tree node of the state, pass into env.step
     ob, stop_condition = await env.initial_observation()
+    rollout_id = 0
     while True:
         t_policy_start = time.time()
         ac_with_logprobs = await policy(ob, stop_condition)
@@ -44,6 +47,8 @@ async def do_single_rollout(policy: TokenCompleter, env: Env, step_idx: int) -> 
         stop_condition = step_result.next_stop_condition
         if step_result.episode_done:
             break
+        rollout_id += 1
+        logger.info(f"Completed step {step_idx} of rollout {rollout_id} with reward {step_result.reward:.3f}, next observation length {ob.length}")
     return Trajectory(transitions=transitions, final_ob=ob)
 
 

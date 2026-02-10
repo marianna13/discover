@@ -47,6 +47,11 @@ from tinker_cookbook.utils.trace import scope, trace_init, get_scope_context
 from tinker_cookbook.utils.ml_log import WandbLogger
 
 
+
+import faulthandler
+# dump Python tracebacks explicitly on a fault, instead of silently crashing the process
+faulthandler.enable()
+
 logger = logging.getLogger(__name__)
 
 
@@ -495,6 +500,7 @@ async def run_evaluations_parallel(
     # Create tasks for all evaluators with names for better traceability
     tasks = []
     for i, evaluator in enumerate(evaluators):
+        logger.info(f"Starting evaluation {i} ({_get_evaluator_name(evaluator)}, {evaluator.__class__.__name__}) for batch {i_batch}")
         ev_name = _get_evaluator_name(evaluator)
         task = asyncio.create_task(
             run_single_evaluation(evaluator, cfg, i_batch, sampling_client),
@@ -550,12 +556,14 @@ async def do_sync_training_with_stream_minibatch(
         t_start = time.time()
 
         # Run evaluations
-        if (cfg.eval_every > 0 and i_batch % cfg.eval_every == 0) or i_batch == end_batch - 1:
+        if (cfg.eval_every > 0 and i_batch % cfg.eval_every == 0 and i_batch != 0 ) or i_batch == end_batch - 1:
             with timed("run_evals", metrics):
                 eval_metrics = await run_evaluations_parallel(
                     evaluators, sampling_client, cfg, i_batch
                 )
                 metrics.update(eval_metrics)
+
+            logger.info(f"Completed evaluations for batch {i_batch}: " + ", ".join(f"{k}={v:.4g}" for k, v in eval_metrics.items()))
 
         with _get_logtree_scope(
             cfg.log_path,
@@ -1307,6 +1315,8 @@ async def do_sync_training(
         }
         t_start = time.time()
 
+        logger.info(f"Starting batch {i_batch}/{end_batch} (epoch {i_batch // num_batches_per_epoch})")
+
         # Make sure we are clearing out existing entrees
         # in case of resuming from previous checkpoints
         if cfg.env == "ac1":
@@ -1356,6 +1366,8 @@ async def do_sync_training(
             scope_name=f"RL Iteration {i_batch}",
         ):
             with timed("sampling", metrics):
+
+                logger.info("starting sampling")
                 # Note: do_remove_constant_reward_groups=False here because we remove
                 # constant reward groups after all rollouts are collected (below)
                 trajectory_groups_P = await asyncio.gather(
@@ -1380,6 +1392,8 @@ async def do_sync_training(
                         for i, builder in enumerate(env_group_builders_P)
                     ],
                 )
+
+                logger.info(f"Completed sampling for batch {i_batch}, num trajectory groups: {len(trajectory_groups_P)}")
 
             if hasattr(dataset, 'flush'):
                 dataset.flush(step=i_batch + 1)
@@ -1427,23 +1441,42 @@ async def do_sync_training(
                         data=table_data
                     )
             }
-        
-        if train_table is not None and isinstance(ml_logger.loggers[2], WandbLogger):
-            ml_logger.loggers[2].log_metrics(train_table, step=i_batch)
-        if test_table is not None and isinstance(ml_logger.loggers[2], WandbLogger):
-            ml_logger.loggers[2].log_metrics(test_table, step=i_batch)
-        if sampler_table_data is not None and isinstance(ml_logger.loggers[2], WandbLogger):
-            ml_logger.loggers[2].log_metrics({
-                f"sampler_states_{i_batch}": wandb.Table(
-                    columns=sampler_table_columns,
-                    data=sampler_table_data
-                )
-            }, step=i_batch)
+
+            console_table = f"Prompt | Gen Sequence | Score | Correctness | Gen Sequence PostProc | Reference | Initial Perf | Advantage\n"
+            console_table += "\n".join(
+                [
+                    f"{row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]} | {row[6]} | {row[7]}"
+                    for row in table_data
+                ]
+            )
+
+            logger.info(f"Train Table for batch {i_batch}:\n{console_table}")
+
+        if len(ml_logger.loggers) > 2 and isinstance(ml_logger.loggers[2], WandbLogger):
+            
+            if train_table is not None and isinstance(ml_logger.loggers[2], WandbLogger):
+                ml_logger.loggers[2].log_metrics(train_table, step=i_batch)
+            if test_table is not None and isinstance(ml_logger.loggers[2], WandbLogger):
+                ml_logger.loggers[2].log_metrics(test_table, step=i_batch)
+            if sampler_table_data is not None and isinstance(ml_logger.loggers[2], WandbLogger):
+                ml_logger.loggers[2].log_metrics({
+                    f"sampler_states_{i_batch}": wandb.Table(
+                        columns=sampler_table_columns,
+                        data=sampler_table_data
+                    )
+                }, step=i_batch)
+        logger.info(
+            f"Train Table for batch {i_batch}:\n{console_table}" if train_table is not None else "No training table for this batch"
+        )
 
         # Log metrics
         metrics.update(train_step_metrics)
         metrics["time/total"] = time.time() - t_start
         ml_logger.log_metrics(metrics, step=i_batch)
+
+        logger.info(
+            f"Completed batch {i_batch}/{end_batch - 1} (epoch {i_batch // num_batches_per_epoch}), metrics: {metrics}"
+        )
 
 
 @scope
@@ -1481,6 +1514,7 @@ async def main(
     else:
         start_batch = 0
 
+    logger.info(f"Starting training with config: {cfg}")
     service_client = tinker.ServiceClient(base_url=cfg.base_url)
     if resume_info:
         # Resuming interrupted training - load optimizer state for proper continuation
@@ -1517,6 +1551,7 @@ async def main(
         dataset.sampler.reload_from_step(start_batch)
     
     evaluators = [evaluator() for evaluator in cfg.evaluator_builders]
+    logger.info(f"Created {len(evaluators)} evaluators")
     if maybe_test_dataset is not None:
         evaluators.append(
             RLTestSetEvaluator(

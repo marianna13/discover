@@ -170,7 +170,7 @@ class RLTestSetEvaluator(SamplingClientEvaluator):
         async def run_group_rollout(builder, i):
             enable_logging = i < self.num_groups_to_log
             with logtree.optional_enable_logging(enable=enable_logging):
-                return await do_group_rollout(builder, policy)
+                return await do_group_rollout(builder, policy, step_idx=i)
 
         trajectory_groups_P = await asyncio.gather(
             *[run_group_rollout(builder, i) for i, builder in enumerate(env_group_builders)]

@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 
 # Import DatasetConfig from dataset_builder
 from tinker_cookbook.recipes.ttt.dataset_builder import DatasetConfig
+import faulthandler
+
+#dump traceback every 30 seconds to help debug hanging issues
+# faulthandler.dump_traceback_later(30, repeat=True)
 
 
 @chz.chz

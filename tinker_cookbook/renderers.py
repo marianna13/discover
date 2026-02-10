@@ -271,6 +271,8 @@ class Renderer(Protocol):
     def __init__(self, tokenizer: Tokenizer):
         self.tokenizer = tokenizer
 
+        logger.info(f"Initialized {self.__class__.__name__} with tokenizer vocab size {len(tokenizer)}")
+
     def _preprocess_message_parts(self, message: Message) -> list[ImagePart | TextPart]:
         return (
             message["content"]
@@ -1287,6 +1289,7 @@ class GptOssRenderer(Renderer):
     @property
     def _return_token(self) -> int:
         res = self.tokenizer.encode("<|return|>", add_special_tokens=False)
+        # logger.info("res: ", res)
         assert len(res) == 1, f"Expected single token for <|return|>, got {len(res)}"
         return res[0]
 

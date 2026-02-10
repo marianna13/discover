@@ -26,6 +26,9 @@ import os, sys, subprocess, tempfile, pickle
 from enum import Enum
 
 from utils.cpu_scheduler import CpuScheduler, get_cpu_group, release_cpu_group
+import logging
+
+logger = logging.getLogger(__name__)
 
 class RewardType(str, Enum):
     LINEAR = "linear"
@@ -458,10 +461,10 @@ class BaseRewardTask(ABC):
         try:
             # Try to get existing actor by name
             scheduler = ray.get_actor("cpu_scheduler")
-            print("[BaseRewardTask] Found existing cpu_scheduler actor.")
+            logger.info("[BaseRewardTask] Found existing cpu_scheduler actor.")
         except ValueError:
             # If not found, create a new one
-            print("[BaseRewardTask] Creating new cpu_scheduler actor.")
+            logger.info("[BaseRewardTask] Creating new cpu_scheduler actor.")
             scheduler = CpuScheduler.options(
                 name="cpu_scheduler",
                 lifetime="detached"
@@ -516,7 +519,7 @@ class BaseRewardTask(ABC):
         try:
             is_valid = self.verify(result, *args, **kwargs)
         except Exception as e:
-            print(e)
+            logger.info(e)
             return self._get_failure_entry(f'Program results failed to execute verification, {e}.')
         
         if not is_valid:
