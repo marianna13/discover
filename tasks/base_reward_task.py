@@ -458,6 +458,8 @@ class BaseRewardTask(ABC):
         tmp_dir = Path(self.log_dir) / "tmp"
         tmp_dir.mkdir(parents=True, exist_ok=True)
 
+        logger.info(f"[BaseRewardTask] Temp dir for reward task: {tmp_dir}")
+
         try:
             # Try to get existing actor by name
             scheduler = ray.get_actor("cpu_scheduler")

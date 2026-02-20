@@ -391,7 +391,7 @@ def initialize_or_resume_wandb_logger(wandb_project, config, log_dir, wandb_name
       - WANDB_ENTITY and WANDB_API_KEY are set in the environment.
       - WandbLogger forwards unknown kwargs to `wandb.init` (for id/resume).
     """
-    api = wandb.Api()
+
 
     # Entity: prefer env var, otherwise fall back to W&B's default entity
     entity = os.environ.get("WANDB_ENTITY", None)
@@ -401,7 +401,11 @@ def initialize_or_resume_wandb_logger(wandb_project, config, log_dir, wandb_name
     project_path = f"{entity}/{wandb_project}"
 
     # Filter by run "Name" (API key is `display_name`)
-    runs = api.runs(project_path, filters={"display_name": wandb_name})
+    try:
+        api = wandb.Api()
+        runs = api.runs(project_path, filters={"display_name": wandb_name})
+    except wandb.errors.CommError as e:
+        runs = []
 
     latest_run_id = None
     latest_created_at = None
