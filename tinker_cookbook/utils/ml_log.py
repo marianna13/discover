@@ -128,9 +128,9 @@ class JsonLogger(Logger):
             config_file = self.log_dir / "config.json"
             with open(config_file, "w") as f:
                 json.dump(config_dict, f, indent=2, cls=_PermissiveJSONEncoder)
-            diff_file = code_state()
-            with open(self.log_dir / "code.diff", "w") as f:
-                f.write(diff_file)
+            # diff_file = code_state()
+            # with open(self.log_dir / "code.diff", "w") as f:
+            #     f.write(diff_file)
             self._logged_hparams = True
 
     def log_metrics(self, metrics: Dict[str, Any], step: int | None = None) -> None:
@@ -225,7 +225,8 @@ class WandbLogger(Logger):
             dir=str(log_dir) if log_dir else None,
             name=wandb_name,
             id=run_id,
-            resume=resume_mode
+            resume=resume_mode,
+            mode="offline"
         )
 
     def log_hparams(self, config: Any) -> None:
@@ -401,11 +402,11 @@ def initialize_or_resume_wandb_logger(wandb_project, config, log_dir, wandb_name
     project_path = f"{entity}/{wandb_project}"
 
     # Filter by run "Name" (API key is `display_name`)
-    try:
-        api = wandb.Api()
-        runs = api.runs(project_path, filters={"display_name": wandb_name})
-    except wandb.errors.CommError as e:
-        runs = []
+    # try:
+    #     api = wandb.Api()
+    #     runs = api.runs(project_path, filters={"display_name": wandb_name})
+    # except wandb.errors.CommError as e:
+    runs = []
 
     latest_run_id = None
     latest_created_at = None

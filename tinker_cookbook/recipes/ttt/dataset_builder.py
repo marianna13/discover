@@ -44,7 +44,7 @@ class DatasetConfig:
     # AC-specific optional fields
     sweep_hyperparams: bool = False
     max_hyperparam_combos: int = 16
-    budget_s: int = 1000
+    budget_s: int = 1500
     # GPU mode specific optional field
     gpu_mode_score_scale: float = 3000.0
 
