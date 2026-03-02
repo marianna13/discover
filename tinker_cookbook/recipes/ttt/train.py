@@ -69,6 +69,7 @@ class CLIConfig:
 
     behavior_if_log_dir_exists: cli_utils.LogdirBehavior = "resume"
 
+    resume_step: int | None = None
     max_steps_off_policy: int | None = None
     loss_fn: Literal["importance_sampling", "ppo"] = "importance_sampling"
     
@@ -115,6 +116,7 @@ def get_dataset_builder(
     log_path: str = "",
     adv_estimator: str | None = None,
     gpu_mode_score_scale: float = 3000.0,
+    resume_step: int | None = None,
 ) -> RLDatasetBuilder:
     # Create general config object
     config = DatasetConfig(
@@ -136,6 +138,7 @@ def get_dataset_builder(
         sweep_hyperparams=sweep_hyperparams,
         max_hyperparam_combos=max_hyperparam_combos,
         gpu_mode_score_scale=gpu_mode_score_scale,
+        resume_step=resume_step,
     )
     
     # Use the general single problem dataset builder for all environments
@@ -223,6 +226,7 @@ async def cli_main(cli_config: CLIConfig):
             log_path=log_path,
             adv_estimator=cli_config.adv_estimator,
             gpu_mode_score_scale=cli_config.gpu_mode_score_scale,
+            resume_step=cli_config.resume_step,
         ),
         model_name=cli_config.model_name,
         lora_rank=cli_config.lora_rank,

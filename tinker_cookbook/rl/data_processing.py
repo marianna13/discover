@@ -138,6 +138,7 @@ def trajectory_to_data(traj: Trajectory, traj_advantage: float) -> list[tinker.D
                 "logprobs": TensorData.from_torch(torch.tensor(sampled_logprobs_T)),
                 "advantages": TensorData.from_torch(torch.tensor(advantages_T)),
                 "mask": TensorData.from_torch(torch.tensor(mask_T)),
+                "weights": TensorData.from_torch(torch.tensor(mask_T)),
             },
         )
 

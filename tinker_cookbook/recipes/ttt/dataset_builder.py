@@ -47,6 +47,7 @@ class DatasetConfig:
     budget_s: int = 1500
     # GPU mode specific optional field
     gpu_mode_score_scale: float = 3000.0
+    resume_step: int | None = None
 
 
 class SingleProblemDataset(RLDataset):
@@ -161,6 +162,7 @@ class SingleProblemDatasetBuilder(RLDatasetBuilder):
                 n=n, 
                 batch_size=self.config.batch_size, 
                 group_size=self.config.group_size,
+                resume_step=self.config.resume_step,
             )
         elif self.config.dataset_name == "ale_bench":
             # For ale_bench, use problem_idx (ahc039 or ahc058) as env_type
@@ -174,6 +176,7 @@ class SingleProblemDatasetBuilder(RLDatasetBuilder):
                 n=None, 
                 batch_size=self.config.batch_size, 
                 group_size=self.config.group_size,
+                resume_step=self.config.resume_step,
             )
         else:
             # For other environments, use a default n or let the sampler handle it
@@ -185,6 +188,7 @@ class SingleProblemDatasetBuilder(RLDatasetBuilder):
                 n=None, 
                 batch_size=self.config.batch_size, 
                 group_size=self.config.group_size,
+                resume_step=self.config.resume_step,
             )
 
 
